@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gate Party</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap">
+<style>
+:root{--bg:#f4eeff;--card:#fff;--ink:#2a1b4d;--mute:#6a5c92;--line:#d6c9f5;--on:#0797b5;--off:#b3a8d3;--lamp:#f5a800;--hl:#e8dcff;--pink:#d81b7a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#20153a;--card:#2c1f4d;--ink:#f1ebff;--mute:#b7a9dd;--line:#4a3a78;--on:#38e1ff;--off:#6b5c98;--lamp:#ffd23f;--hl:#3b2c68;--pink:#ff5fa8}}
+:root[data-theme="dark"]{--bg:#20153a;--card:#2c1f4d;--ink:#f1ebff;--mute:#b7a9dd;--line:#4a3a78;--on:#38e1ff;--off:#6b5c98;--lamp:#ffd23f;--hl:#3b2c68;--pink:#ff5fa8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Fredoka","Trebuchet MS",system-ui,sans-serif;line-height:1.45}
+main{max-width:520px;margin:0 auto;padding:22px 16px 44px}
+h1{font-size:2.1rem;margin:0;letter-spacing:.01em}
+.sub{margin:2px 0 16px;color:var(--mute)}
+button{font:inherit;color:var(--ink);background:var(--card);border:2px solid var(--line);border-radius:999px;padding:8px 16px;cursor:pointer;min-height:42px}
+button:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+button:disabled{opacity:.5;cursor:default}
+.modes{display:flex;gap:6px;background:var(--card);border:2px solid var(--line);border-radius:999px;padding:4px;margin-bottom:14px}
+.modes button{flex:1;border:0;background:none}
+.modes button.sel{background:var(--pink);color:#fff;font-weight:600}
+.card{background:var(--card);border:2px solid var(--line);border-radius:22px;padding:10px;margin-bottom:12px}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
+.inp{flex:1;min-width:110px;font-size:1.1rem}
+.inp.high{background:var(--on);border-color:var(--on);color:#10102a;font-weight:600}
+.chip.sel{background:var(--pink);border-color:var(--pink);color:#fff;font-weight:600}
+.say{background:var(--hl);border-radius:16px;padding:10px 14px;margin-bottom:12px;min-height:48px}
+.lbl{margin:0 0 8px;color:var(--mute)}
+.stat{color:var(--mute);padding:0 6px}
+svg{width:100%;height:auto;display:block}
+.w{stroke:var(--off);stroke-width:5;fill:none;stroke-linecap:round}
+.w.high{stroke:var(--on);stroke-dasharray:10 8;animation:flow .5s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-18}}
+.body{fill:var(--card);stroke:var(--ink);stroke-width:3;stroke-linejoin:round}
+.ink{fill:var(--ink)}
+.mouth{fill:none;stroke:var(--ink);stroke-width:3;stroke-linecap:round}
+.q{font-size:56px;font-weight:600;fill:var(--pink);text-anchor:middle}
+.sw{fill:var(--card);stroke:var(--off);stroke-width:3;cursor:pointer}
+.sw.high{fill:var(--on);stroke:var(--on)}
+.swt{font-size:16px;font-weight:600;fill:var(--ink);text-anchor:middle;pointer-events:none}
+.swt.high{fill:#10102a}
+.tx{fill:var(--mute);font-size:14px;text-anchor:middle}
+.lamp{fill:var(--off)}
+.lamp.high{fill:var(--lamp);filter:drop-shadow(0 0 10px var(--lamp))}
+table{width:100%;border-collapse:collapse;text-align:center}
+th,td{padding:8px;border-bottom:1px solid var(--line)}
+th{color:var(--mute);font-weight:600}
+tr.now td{background:var(--hl);font-weight:600}
+.shake{animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+@media (prefers-reduced-motion:reduce){.w.high,.shake{animation:none}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Gate Party</h1>
+  <p class="sub">Har logic gate ek bouncer hai. Dekho kaun andar jaane deta hai.</p>
+
+  <div class="modes">
+    <button id="mPlay" onclick="setMode('play')">Khelo</button>
+    <button id="mMys" onclick="setMode('mystery')">Gate pehchano</button>
+  </div>
+
+  <div class="card" id="stage"><svg viewBox="0 0 340 180" id="svg" role="img" aria-label="Gate diagram"></svg></div>
+
+  <div class="row">
+    <button class="inp" id="btnA" onclick="tg('a')"></button>
+    <button class="inp" id="btnB" onclick="tg('b')"></button>
+  </div>
+
+  <div class="say" id="say"></div>
+  <p class="lbl" id="hint"></p>
+  <div class="row" id="gates"></div>
+  <div class="card"><table id="tbl"></table></div>
+  <div class="row" id="foot"></div>
+</main>
+
+<script>
+const G = {
+  AND:  {f:(a,b)=>a&b,       q:"Dono aao, tabhi andar!", x:148},
+  OR:   {f:(a,b)=>a|b,       q:"Koi ek aaya? Chalega, andar aao.", x:146},
+  NOT:  {f:a=>1-a,           q:"Jo bolo, main ulta karunga.", x:138},
+  NAND: {f:(a,b)=>1-(a&b),   q:"Dono aaye? Bilkul nahi!", x:148},
+  NOR:  {f:(a,b)=>1-(a|b),   q:"Koi na aaye, tabhi darwaza khulega.", x:146},
+  XOR:  {f:(a,b)=>a^b,       q:"Alag-alag aao, same nahi chalega.", x:148},
+  XNOR: {f:(a,b)=>1-(a^b),   q:"Same vibe wale hi andar.", x:148}
+};
+const TWO = ["AND","OR","NAND","NOR","XOR","XNOR"];
+let mode="play", gate="AND", a=0, b=0, secret="AND", solved=false, seen={}, score=0, streak=0, msg="";
+const $ = id => document.getElementById(id);
+
+function shape(g){
+  const inv = ["NAND","NOR","XNOR","NOT"].includes(g);
+  let body;
+  if (g === "NOT") body = '<path class="body" d="M120,55 L120,125 L190,90 Z"/>';
+  else if (g === "AND" || g === "NAND") body = '<path class="body" d="M110,40 H150 A50,50 0 0 1 150,140 H110 Z"/>';
+  else body = '<path class="body" d="M110,40 Q160,40 200,90 Q160,140 110,140 Q135,90 110,40 Z"/>';
+  if (g === "XOR" || g === "XNOR") body += '<path class="body" style="fill:none" d="M98,40 Q123,90 98,140"/>';
+  return {body, inv};
+}
+
+function draw(){
+  const mys = mode === "mystery", g = mys ? secret : gate, one = g === "NOT";
+  const out = one ? G[g].f(a) : G[g].f(a, b);
+  if (mys) seen["" + a + b] = 1;
+  const hide = mys && !solved;
+  const {body, inv} = shape(g);
+  const tip = one ? 190 : 200;
+  const ox = (inv && !hide) ? tip + 12 : tip;
+  const c = v => v ? "w high" : "w";
+  let s = "";
+
+  const ys = one ? [90] : [50,130], vals = one ? [a] : [a,b], names = one ? ["a"] : ["a","b"];
+  ys.forEach((y,i) => {
+    s += `<path class="${c(vals[i])}" d="M43,${y} H${one ? 120 : 112}"/>`;
+  });
+  s += `<path class="${c(out)}" d="M${ox},90 H301"/>`;
+
+  if (hide) {
+    s += '<rect class="body" x="112" y="40" width="88" height="100" rx="18" stroke-dasharray="6 6"/><text class="q" x="156" y="108">?</text>';
+  } else {
+    s += body;
+    if (inv) s += `<circle class="body" cx="${tip+6}" cy="90" r="6"/>`;
+    const fx = G[g].x;
+    s += `<circle class="ink" cx="${fx-12}" cy="80" r="4.5"/><circle class="ink" cx="${fx+12}" cy="80" r="4.5"/>`;
+    s += out
+      ? `<path class="mouth" d="M${fx-11},96 Q${fx},110 ${fx+11},96"/>`
+      : `<path class="mouth" d="M${fx-11},106 Q${fx},94 ${fx+11},106"/>`;
+  }
+
+  ys.forEach((y,i) => {
+    const h = vals[i] ? "high" : "";
+    s += `<circle class="sw ${h}" cx="26" cy="${y}" r="17" onclick="tg('${names[i]}')"/>`;
+    s += `<text class="swt ${h}" x="26" y="${y+6}">${vals[i]}</text>`;
+    s += `<text class="tx" x="26" y="${y-24}">${names[i].toUpperCase()}</text>`;
+  });
+  s += `<circle class="lamp ${out ? "high" : ""}" cx="316" cy="90" r="15"/><text class="tx" x="316" y="124">Y</text>`;
+  $("svg").innerHTML = s;
+
+  $("mPlay").className = mys ? "" : "sel";
+  $("mMys").className = mys ? "sel" : "";
+  $("btnA").textContent = "Input A: " + a;
+  $("btnA").className = "inp" + (a ? " high" : "");
+  $("btnB").textContent = "Input B: " + b;
+  $("btnB").className = "inp" + (b ? " high" : "");
+  $("btnB").style.display = one ? "none" : "";
+
+  $("say").textContent = mys ? msg : `"${G[g].q}"`;
+  $("hint").textContent = mys ? (solved ? "Sahi jawab:" : "Kaun sa gate hai? Guess karo:") : "Gate chuno:";
+
+  const list = mys ? TWO : Object.keys(G);
+  $("gates").innerHTML = list.map(n => {
+    const sel = mys ? (solved && n === secret) : n === gate;
+    return `<button class="chip ${sel ? "sel" : ""}" ${mys && solved ? "disabled" : ""} onclick="pick('${n}')">${n}</button>`;
+  }).join("");
+
+  let t = one ? "<tr><th>A</th><th>Y</th></tr>" : "<tr><th>A</th><th>B</th><th>Y</th></tr>";
+  (one ? [[0],[1]] : [[0,0],[0,1],[1,0],[1,1]]).forEach(r => {
+    const y = one ? G[g].f(r[0]) : G[g].f(r[0], r[1]);
+    const now = one ? r[0] === a : (r[0] === a && r[1] === b);
+    const known = !mys || solved || seen[r.join("")];
+    t += `<tr class="${now ? "now" : ""}">${r.map(v => `<td>${v}</td>`).join("")}<td>${known ? y : "?"}</td></tr>`;
+  });
+  $("tbl").innerHTML = t;
+
+  $("foot").innerHTML = mys
+    ? `<span class="stat">Score ${score}</span><span class="stat">Streak ${streak}</span><button class="chip" onclick="round()">${solved ? "Next gate" : "Skip"}</button>`
+    : "";
+}
+
+function tg(k){ if (k === "a") a = 1 - a; else b = 1 - b; draw(); }
+
+function pick(n){
+  if (mode === "play") { gate = n; draw(); return; }
+  if (solved) return;
+  if (n === secret) {
+    solved = true; score++; streak++;
+    msg = `Sahi pakde! Ye ${n} tha: "${G[n].q}"`;
+    draw();
+  } else {
+    streak = 0;
+    msg = `${n} nahi hai. Aur inputs try karo, table bharne do.`;
+    draw();
+    $("stage").classList.add("shake");
+    setTimeout(() => $("stage").classList.remove("shake"), 400);
+  }
+}
+
+function round(){
+  secret = TWO[Math.floor(Math.random() * TWO.length)];
+  seen = {}; solved = false; a = 0; b = 0;
+  msg = "Ek gate parde ke peeche hai. Inputs badlo aur output dekho.";
+  draw();
+}
+function setMode(m){
+  mode = m; a = 0; b = 0;
+  if (m === "mystery") round(); else draw();
+}
+draw();
+</script>
+</body>
+</html>
